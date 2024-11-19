@@ -1,4 +1,6 @@
-<div align=center>
+<div align="center">
+
+<img src="https://github.com/user-attachments/assets/6ec3ec07-cb32-461a-b590-f6b95773ca2b" width="240" alt="Authors avatar in ASCII art style">
 
 # ASCII Art H5
 
