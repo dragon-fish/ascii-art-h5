@@ -1,6 +1,8 @@
 export class ASCIIArtCanvas {
-  readonly DEFAULT_MONOCHROME_CHARS = '@80GCLft1i;:,. '.split('')
-  readonly DEFAULT_COLORED_CHARS = '@'.split('')
+  static readonly DEFAULT_MONOCHROME_CHARS = '@80GCLft1i;:,. '.split('')
+  static readonly DEFAULT_COLORED_CHARS = '@'.split('')
+  static readonly DEFAULT_FONT_FAMILY =
+    '"JetBrains Mono",Consolas,Monaco,"Andale Mono","Ubuntu Mono",monospace'
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.canvas ||= document.createElement('canvas')
@@ -10,7 +12,7 @@ export class ASCIIArtCanvas {
   }
 
   get ctx() {
-    const ctx = this.canvas.getContext('2d')!
+    const ctx = this.canvas.getContext('2d', { willReadFrequently: true })!
     Reflect.set(this, 'ctx', ctx)
     return ctx
   }
@@ -95,7 +97,7 @@ export class ASCIIArtCanvas {
     return rows
   }
 
-  makeHTMLContainer(width: number, height: number) {
+  createHTMLContainer(width: number, height: number) {
     const container = document.createElement('div')
     container.className = 'ascii-art-container'
     container.style.display = 'grid'
@@ -113,7 +115,10 @@ export class ASCIIArtCanvas {
    * @param chars the chars to be used to render the canvas
    * @returns the HTML string
    */
-  toColoredHTML(size = 100, chars = this.DEFAULT_COLORED_CHARS) {
+  generateColoredHTML({
+    size = 100,
+    chars = ASCIIArtCanvas.DEFAULT_COLORED_CHARS,
+  } = {}) {
     const charMap = this.getSampledMap(size)
     let i = 0
     const html = charMap
@@ -128,10 +133,11 @@ export class ASCIIArtCanvas {
           })
           .join('')
       })
-      .join('')
-    const container = this.makeHTMLContainer(charMap[0].length, charMap.length)
-    container.innerHTML = html
-    return container.outerHTML
+      .join('\n')
+    return html
+    // const container = this.createHTMLContainer(charMap[0].length, charMap.length)
+    // container.innerHTML = html
+    // return container.outerHTML
   }
 
   /**
@@ -141,7 +147,10 @@ export class ASCIIArtCanvas {
    * @param size the max length of the row
    * @param chars the chars to be used to render the canvas
    */
-  toGrayscaleHTML(size = 100, chars = this.DEFAULT_MONOCHROME_CHARS) {
+  generateGrayscaleHTML({
+    size = 100,
+    chars = ASCIIArtCanvas.DEFAULT_MONOCHROME_CHARS,
+  } = {}) {
     const charMap = this.getSampledMap(size)
     const html = charMap
       .map((row) => {
@@ -161,14 +170,82 @@ export class ASCIIArtCanvas {
                 luminance: bit.luminance,
               })
             }
-            return `<span>${char}</span>`
+            return char
           })
           .join('')
       })
-      .join('')
-    const container = this.makeHTMLContainer(charMap[0].length, charMap.length)
-    container.innerHTML = html
-    return container.outerHTML
+      .join('\n')
+    return html
+    // const container = this.createHTMLContainer(charMap[0].length, charMap.length)
+    // container.innerHTML = html
+    // return container.outerHTML
+  }
+
+  renderGrayscaleCanvas({
+    canvas = document.createElement('canvas'),
+    size = 100,
+    chars = ASCIIArtCanvas.DEFAULT_MONOCHROME_CHARS,
+    fontSize = 14,
+    gap = 0,
+  } = {}) {
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error('canvas is not HTMLCanvasElement')
+    }
+    const charMap = this.getSampledMap(size)
+    const ctx = canvas.getContext('2d')!
+    const charWidth = charMap[0].length
+    const charHeight = charMap.length
+    canvas.width = charWidth * (fontSize + gap)
+    canvas.height = charHeight * (fontSize + gap)
+    charMap.forEach((row, y) => {
+      row.forEach((bit, x) => {
+        const charIndex = Math.round(bit.luminance * (chars.length - 1))
+        const char = chars[charIndex]
+        ctx.fillStyle = `rgb(0,0,0)`
+        ctx.font = `bold ${fontSize}px ${ASCIIArtCanvas.DEFAULT_FONT_FAMILY}`
+        ctx.fillText(
+          char,
+          x * (fontSize + gap),
+          y * (fontSize + gap) + fontSize
+        )
+      })
+    })
+    return canvas
+  }
+
+  renderColoredCanvas({
+    canvas = document.createElement('canvas'),
+    size = 100,
+    chars = ASCIIArtCanvas.DEFAULT_COLORED_CHARS,
+    fontSize = 14,
+    gap = 0,
+  } = {}) {
+    if (!(canvas instanceof HTMLCanvasElement)) {
+      throw new Error('canvas is not HTMLCanvasElement')
+    }
+    const charMap = this.getSampledMap(size)
+    const ctx = canvas.getContext('2d')!
+    const charWidth = charMap[0].length
+    const charHeight = charMap.length
+    canvas.width = charWidth * (fontSize + gap)
+    canvas.height = charHeight * (fontSize + gap)
+    charMap.forEach((row, y) => {
+      row.forEach((bit, x) => {
+        const charIndex = (y * charWidth + x) % chars.length
+        const char = chars[charIndex]
+        if (typeof char !== 'string' || char.length !== 1) {
+          console.warn('invalid char', { char, charIndex, chars })
+        }
+        ctx.fillStyle = `rgba(${bit.r},${bit.g},${bit.b},${bit.a / 255})`
+        ctx.font = `bold ${fontSize}px ${ASCIIArtCanvas.DEFAULT_FONT_FAMILY}`
+        ctx.fillText(
+          char,
+          x * (fontSize + gap),
+          y * (fontSize + gap) + fontSize
+        )
+      })
+    })
+    return canvas
   }
 }
 
